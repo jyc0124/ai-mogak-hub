@@ -3,25 +3,78 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Brain } from "lucide-react";
-import { Link } from "react-router-dom";
-import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
+import { z } from "zod";
+
+const signupSchema = z.object({
+  email: z.string().email("올바른 이메일을 입력해주세요"),
+  nickname: z.string().min(2, "닉네임은 최소 2자 이상이어야 합니다").max(20, "닉네임은 최대 20자까지 가능합니다"),
+  password: z.string().min(6, "비밀번호는 최소 6자 이상이어야 합니다"),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "비밀번호가 일치하지 않습니다",
+  path: ["confirmPassword"],
+});
 
 const Signup = () => {
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-    confirmPassword: "",
-    nickname: ""
-  });
+  const [email, setEmail] = useState("");
+  const [nickname, setNickname] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [interests, setInterests] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (user) {
+      navigate("/");
+    }
+  }, [user, navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // 백엔드 연결 시 구현 예정
-    console.log("Signup:", formData);
-  };
+    
+    try {
+      const validated = signupSchema.parse({ email, nickname, password, confirmPassword });
+      setIsLoading(true);
 
-  const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+      const redirectUrl = `${window.location.origin}/`;
+
+      const { error } = await supabase.auth.signUp({
+        email: validated.email,
+        password: validated.password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            nickname: validated.nickname,
+            interests: interests,
+          }
+        }
+      });
+
+      if (error) {
+        if (error.message.includes("User already registered")) {
+          toast.error("이미 가입된 이메일입니다");
+        } else {
+          toast.error(error.message);
+        }
+        return;
+      }
+
+      toast.success("회원가입 성공! 로그인해주세요.");
+      navigate("/login");
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast.error(error.errors[0].message);
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -42,8 +95,8 @@ const Signup = () => {
               id="email"
               type="email"
               placeholder="your@email.com"
-              value={formData.email}
-              onChange={(e) => handleChange("email", e.target.value)}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
             />
           </div>
@@ -54,8 +107,8 @@ const Signup = () => {
               id="nickname"
               type="text"
               placeholder="사용할 닉네임을 입력하세요"
-              value={formData.nickname}
-              onChange={(e) => handleChange("nickname", e.target.value)}
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
               required
             />
           </div>
@@ -66,8 +119,8 @@ const Signup = () => {
               id="password"
               type="password"
               placeholder="••••••••"
-              value={formData.password}
-              onChange={(e) => handleChange("password", e.target.value)}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               required
             />
           </div>
@@ -78,9 +131,20 @@ const Signup = () => {
               id="confirmPassword"
               type="password"
               placeholder="••••••••"
-              value={formData.confirmPassword}
-              onChange={(e) => handleChange("confirmPassword", e.target.value)}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
               required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="interests">관심 분야 (선택사항)</Label>
+            <Input
+              id="interests"
+              type="text"
+              placeholder="예: 머신러닝, 딥러닝, NLP"
+              value={interests}
+              onChange={(e) => setInterests(e.target.value)}
             />
           </div>
 
@@ -88,8 +152,9 @@ const Signup = () => {
             type="submit"
             className="w-full text-white"
             style={{ background: "var(--gradient-primary)" }}
+            disabled={isLoading}
           >
-            회원가입
+            {isLoading ? "가입 중..." : "회원가입"}
           </Button>
         </form>
 

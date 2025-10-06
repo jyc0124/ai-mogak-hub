@@ -3,17 +3,61 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Brain } from "lucide-react";
-import { Link } from "react-router-dom";
-import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
+import { z } from "zod";
+
+const loginSchema = z.object({
+  email: z.string().email("올바른 이메일을 입력해주세요"),
+  password: z.string().min(6, "비밀번호는 최소 6자 이상이어야 합니다"),
+});
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (user) {
+      navigate("/");
+    }
+  }, [user, navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // 백엔드 연결 시 구현 예정
-    console.log("Login:", { email, password });
+    
+    try {
+      const validated = loginSchema.parse({ email, password });
+      setIsLoading(true);
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email: validated.email,
+        password: validated.password,
+      });
+
+      if (error) {
+        if (error.message.includes("Invalid login credentials")) {
+          toast.error("이메일 또는 비밀번호가 잘못되었습니다");
+        } else {
+          toast.error(error.message);
+        }
+        return;
+      }
+
+      toast.success("로그인 성공!");
+      navigate("/");
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast.error(error.errors[0].message);
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -56,8 +100,9 @@ const Login = () => {
             type="submit"
             className="w-full text-white"
             style={{ background: "var(--gradient-primary)" }}
+            disabled={isLoading}
           >
-            로그인
+            {isLoading ? "로그인 중..." : "로그인"}
           </Button>
         </form>
 

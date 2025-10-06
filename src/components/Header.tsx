@@ -1,10 +1,19 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Brain, Menu, X } from "lucide-react";
+import { Brain, Menu, X, LogOut } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success("로그아웃되었습니다");
+    setMobileMenuOpen(false);
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -33,12 +42,30 @@ const Header = () => {
 
         {/* Desktop Auth Buttons */}
         <div className="hidden md:flex items-center gap-3">
-          <Button variant="ghost" asChild>
-            <Link to="/login">로그인</Link>
-          </Button>
-          <Button asChild style={{ background: "var(--gradient-primary)" }} className="text-white">
-            <Link to="/signup">회원가입</Link>
-          </Button>
+          {user ? (
+            <>
+              <Button variant="ghost" asChild>
+                <Link to="/mypage">마이페이지</Link>
+              </Button>
+              <Button 
+                variant="ghost" 
+                onClick={handleSignOut}
+                className="flex items-center gap-2"
+              >
+                <LogOut className="h-4 w-4" />
+                로그아웃
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" asChild>
+                <Link to="/login">로그인</Link>
+              </Button>
+              <Button asChild style={{ background: "var(--gradient-primary)" }} className="text-white">
+                <Link to="/signup">회원가입</Link>
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Mobile Menu Button */}
@@ -77,12 +104,30 @@ const Header = () => {
               자료공유
             </Link>
             <div className="flex flex-col gap-2 pt-2 border-t border-border">
-              <Button variant="ghost" asChild onClick={() => setMobileMenuOpen(false)}>
-                <Link to="/login">로그인</Link>
-              </Button>
-              <Button asChild style={{ background: "var(--gradient-primary)" }} className="text-white" onClick={() => setMobileMenuOpen(false)}>
-                <Link to="/signup">회원가입</Link>
-              </Button>
+              {user ? (
+                <>
+                  <Button variant="ghost" asChild onClick={() => setMobileMenuOpen(false)}>
+                    <Link to="/mypage">마이페이지</Link>
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    onClick={handleSignOut}
+                    className="flex items-center gap-2 justify-center"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    로그아웃
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="ghost" asChild onClick={() => setMobileMenuOpen(false)}>
+                    <Link to="/login">로그인</Link>
+                  </Button>
+                  <Button asChild style={{ background: "var(--gradient-primary)" }} className="text-white" onClick={() => setMobileMenuOpen(false)}>
+                    <Link to="/signup">회원가입</Link>
+                  </Button>
+                </>
+              )}
             </div>
           </nav>
         </div>
